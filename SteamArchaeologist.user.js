@@ -2,7 +2,7 @@
 // @name         Steam Archaeologist
 // @namespace    steam.archaeologist
 // @version      0.1
-// @description  Filtrowanie gier Steam według roku wydania
+// @description  Add year persistence and result counter
 // @match        https://store.steampowered.com/search/*
 // @run-at       document-idle
 // @grant        none
@@ -12,7 +12,7 @@
     'use strict';
 
     const gry = document.querySelectorAll(".search_result_row");
-    let wybranyRok = 2012;
+    let wybranyRok = Number(localStorage.getItem("SteamArchaeologist_Rok")) || 2012;
 
     function filtruj() {
 
@@ -36,32 +36,54 @@
             }
         }
         napisRoku.innerText = "Rok: " + wybranyRok;
+        napisLicznik.innerText = "Znaleziono: " + licznik;
 
         console.log("Steam Archaeologist:", wybranyRok, "→", licznik);
     }
 
-const nastepnyRok = document.createElement("button");
-nastepnyRok.innerText = "▶";
-document.body.prepend(nastepnyRok);
+    function aktualizujPrzyciski() {
+    nastepnyRok.disabled = wybranyRok >= new Date().getFullYear();
+    poprzedniRok.disabled = wybranyRok <= 1980;
+	}
 
-nastepnyRok.addEventListener("click", function () {
-    wybranyRok++;
-    filtruj();
-});
-
-
-const napisRoku = document.createElement("div");
-document.body.prepend(napisRoku);
-
+const panel = document.createElement("div");
 
 const poprzedniRok = document.createElement("button");
 poprzedniRok.innerText = "◀";
-document.body.prepend(poprzedniRok);
+
+const napisRoku = document.createElement("div");
+const napisLicznik = document.createElement("div");
+
+const nastepnyRok = document.createElement("button");
+nastepnyRok.innerText = "▶";
+
+panel.append(poprzedniRok);
+panel.append(napisRoku);
+panel.append(napisLicznik);
+panel.append(nastepnyRok);
+
+panel.style.display = "flex";
+panel.style.justifyContent = "center";
+panel.style.alignItems = "center";
+panel.style.gap = "10px";
+
+document.body.prepend(panel);
 
 poprzedniRok.addEventListener("click", function () {
-    wybranyRok--;
-    filtruj();
-});
+        wybranyRok--;
+        localStorage.setItem("SteamArchaeologist_Rok", wybranyRok);
+        filtruj();
+    });
+
+nastepnyRok.addEventListener("click", function () {
+    if (wybranyRok < new Date().getFullYear()) {
+        wybranyRok++;
+        aktualizujPrzyciski();
+        localStorage.setItem("SteamArchaeologist_Rok", wybranyRok);
+        filtruj();
+    }});
+
+aktualizujPrzyciski();
 
 filtruj();
 
