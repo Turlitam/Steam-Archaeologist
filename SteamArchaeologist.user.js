@@ -2,7 +2,7 @@
 // @name         Steam Archaeologist
 // @namespace    steam.archaeologist
 // @version      0.1
-// @description  Add year persistence and result counter
+// @description  Filtrowanie gier Steam według roku wydania
 // @match        https://store.steampowered.com/search/*
 // @run-at       document-idle
 // @grant        none
@@ -11,11 +11,10 @@
 (function () {
     'use strict';
 
-    const gry = document.querySelectorAll(".search_result_row");
     let wybranyRok = Number(localStorage.getItem("SteamArchaeologist_Rok")) || 2012;
-
+ 
     function filtruj() {
-
+        const gry = document.querySelectorAll(".search_result_row");
         let licznik = 0;
 
         for (const gra of gry) {
@@ -36,7 +35,13 @@
             }
         }
         napisRoku.innerText = "Rok: " + wybranyRok;
-        napisLicznik.innerText = "Znaleziono: " + licznik;
+
+        if (licznik !== 0) {
+            napisLicznik.innerText = "Znaleziono: " + licznik;
+        }
+        else {
+            napisLicznik.innerText = "Brak wyników";
+        }
 
         console.log("Steam Archaeologist:", wybranyRok, "→", licznik);
     }
@@ -69,8 +74,12 @@ panel.style.gap = "10px";
 
 document.body.prepend(panel);
 
+
+aktualizujPrzyciski();
+
 poprzedniRok.addEventListener("click", function () {
         wybranyRok--;
+        aktualizujPrzyciski();
         localStorage.setItem("SteamArchaeologist_Rok", wybranyRok);
         filtruj();
     });
@@ -82,8 +91,6 @@ nastepnyRok.addEventListener("click", function () {
         localStorage.setItem("SteamArchaeologist_Rok", wybranyRok);
         filtruj();
     }});
-
-aktualizujPrzyciski();
 
 filtruj();
 
