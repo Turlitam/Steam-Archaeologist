@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Steam Archaeologist
 // @namespace    steam.archaeologist
-// @version      0.1
-// @description  Filtrowanie gier Steam według roku wydania
+// @version      0.4
+// @description  Filter Steam games by release year
 // @match        https://store.steampowered.com/search/*
 // @run-at       document-idle
 // @grant        none
@@ -11,87 +11,148 @@
 (function () {
     'use strict';
 
-    let wybranyRok = Number(localStorage.getItem("SteamArchaeologist_Rok")) || 2012;
- 
-    function filtruj() {
-        const gry = document.querySelectorAll(".search_result_row");
-        let licznik = 0;
+    let selectedYear = Number(localStorage.getItem("SteamArchaeologist_Rok")) || 2012;
+    let resultCount = 0;
+    const processedGames = new Set();
 
-        for (const gra of gry) {
+    function filterGame(game) {
+    game.style.display = "";
 
-            gra.style.display = "";
+    const releaseYear = Number(
+        game.querySelector(".search_released").innerText.trim().slice(-4)
+    );
 
-            const nazwa = gra.querySelector(".title").innerText;
-
-            const rok = Number(
-                gra.querySelector(".search_released").innerText.trim().slice(-4)
-            );
-
-            if (rok === wybranyRok) {
-                licznik++;
-            }
-            else {
-                gra.style.display = "none";
-            }
-        }
-        napisRoku.innerText = "Rok: " + wybranyRok;
-
-        if (licznik !== 0) {
-            napisLicznik.innerText = "Znaleziono: " + licznik;
-        }
-        else {
-            napisLicznik.innerText = "Brak wyników";
-        }
-
-        console.log("Steam Archaeologist:", wybranyRok, "→", licznik);
+    if (releaseYear !== selectedYear) {
+        game.style.display = "none";
+    }
     }
 
-    function aktualizujPrzyciski() {
-    nastepnyRok.disabled = wybranyRok >= new Date().getFullYear();
-    poprzedniRok.disabled = wybranyRok <= 1980;
+    function updateResultLabel() {
+    if (resultCount !== 0) {
+        resultLabel.innerText = "Found: " + resultCount;
+    }
+    else {
+        resultLabel.innerText = "No results";
+    }
+    }
+
+    function filterGames() {
+        resultCount = 0;
+        const games = document.querySelectorAll(".search_result_row");
+
+        for (const game of games) {
+            processedGames.add(game);
+
+            filterGame(game);
+
+            if (game.style.display !== "none") {
+                resultCount++;
+            }
+        }
+
+        yearLabel.innerText = "Year: " + selectedYear;
+
+        updateResultLabel();
+
+        console.log("Steam Archaeologist:", selectedYear, "→", resultCount);
+    }
+
+    function updateButtons() {
+    nextYearButton.disabled = selectedYear >= new Date().getFullYear();
+    previousYearButton.disabled = selectedYear <= 1980;
 	}
 
-const panel = document.createElement("div");
+const controlPanel = document.createElement("div");
 
-const poprzedniRok = document.createElement("button");
-poprzedniRok.innerText = "◀";
+const previousYearButton = document.createElement("button");
+previousYearButton.innerText = "◀";
 
-const napisRoku = document.createElement("div");
-const napisLicznik = document.createElement("div");
+const yearLabel = document.createElement("div");
+const resultLabel = document.createElement("div");
 
-const nastepnyRok = document.createElement("button");
-nastepnyRok.innerText = "▶";
+const nextYearButton = document.createElement("button");
+nextYearButton.innerText = "▶";
 
-panel.append(poprzedniRok);
-panel.append(napisRoku);
-panel.append(napisLicznik);
-panel.append(nastepnyRok);
+controlPanel.append(previousYearButton);
+controlPanel.append(yearLabel);
+controlPanel.append(resultLabel);
+controlPanel.append(nextYearButton);
 
-panel.style.display = "flex";
-panel.style.justifyContent = "center";
-panel.style.alignItems = "center";
-panel.style.gap = "10px";
+controlPanel.style.display = "flex";
+controlPanel.style.flexDirection = "row";
+controlPanel.style.justifyContent = "center";
+controlPanel.style.alignItems = "center";
+controlPanel.style.gap = "6px";
+controlPanel.style.borderRadius = "6px";
 
-document.body.prepend(panel);
+controlPanel.style.position = "fixed";
+controlPanel.style.top = "10px";
+controlPanel.style.left = "50%";
+controlPanel.style.transform = "translateX(-50%)";
+controlPanel.style.zIndex = "1000";
+
+controlPanel.style.backgroundColor = "#1b2838";
+controlPanel.style.padding = "2px 6px";
+controlPanel.style.border = "2px solid #2a475e";
+
+document.body.prepend(controlPanel);
 
 
-aktualizujPrzyciski();
+updateButtons();
 
-poprzedniRok.addEventListener("click", function () {
-        wybranyRok--;
-        aktualizujPrzyciski();
-        localStorage.setItem("SteamArchaeologist_Rok", wybranyRok);
-        filtruj();
+previousYearButton.addEventListener("click", function () {
+        selectedYear--;
+        updateButtons();
+        localStorage.setItem("SteamArchaeologist_Rok", selectedYear);
+        filterGames();
     });
 
-nastepnyRok.addEventListener("click", function () {
-    if (wybranyRok < new Date().getFullYear()) {
-        wybranyRok++;
-        aktualizujPrzyciski();
-        localStorage.setItem("SteamArchaeologist_Rok", wybranyRok);
-        filtruj();
+nextYearButton.addEventListener("click", function () {
+    if (selectedYear < new Date().getFullYear()) {
+        selectedYear++;
+        updateButtons();
+        localStorage.setItem("SteamArchaeologist_Rok", selectedYear);
+        filterGames();
     }});
 
-filtruj();
+filterGames();
+
+const observer = new MutationObserver(function (mutations) {
+    let newGames = [];
+
+    for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+            if (node.nodeType === 1) {
+                if (node.matches(".search_result_row")) {
+                    newGames.push(node);
+                }
+                else {
+                    newGames.push(...node.querySelectorAll(".search_result_row"));
+                }
+            }
+        }
+    }
+
+    if (newGames.length > 0) {
+        for (const game of newGames) {
+            if (!processedGames.has(game)) {
+                processedGames.add(game);
+
+                filterGame(game);
+
+                if (game.style.display !== "none") {
+                    resultCount++;
+                }
+            }
+        }
+
+updateResultLabel();
+    }
+});
+
+observer.observe(document.querySelector("#search_resultsRows"), {
+    childList: true,
+    subtree: true
+});
 
 })();
