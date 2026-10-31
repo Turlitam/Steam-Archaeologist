@@ -24,9 +24,8 @@
             return;
         }
 
-        const releaseYear = Number(
-            releaseDate.innerText.trim().slice(-4)
-        );
+        const yearMatch = releaseDate.innerText.match(/\b\d{4}\b/);
+        const releaseYear = yearMatch ? Number(yearMatch[0]) : null;
 
         if (releaseYear !== selectedYear) {
             game.style.display = "none";
@@ -61,7 +60,7 @@
     }
 
     function updateButtons() {
-        nextYearButton.disabled = selectedYear >= new Date().getFullYear();
+        nextYearButton.disabled = selectedYear >= new Date().getFullYear() + 2;
         previousYearButton.disabled = selectedYear <= 1980;
     }
 
@@ -111,7 +110,7 @@
     });
 
     nextYearButton.addEventListener("click", function () {
-        if (selectedYear < new Date().getFullYear()) {
+        if (selectedYear < new Date().getFullYear() + 2) {
             selectedYear++;
             updateButtons();
             localStorage.setItem("SteamArchaeologist_Rok", selectedYear);
