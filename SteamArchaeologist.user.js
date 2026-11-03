@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Steam Archaeologist
 // @namespace    steam.archaeologist
-// @version      0.4
+// @version      0.5
 // @description  Filter Steam games by release year
 // @match        https://store.steampowered.com/search/*
 // @run-at       document-idle
@@ -13,21 +13,24 @@
 
     let selectedYear = Number(localStorage.getItem("SteamArchaeologist_Rok")) || 2012;
     let resultCount = 0;
+    let savedMode = localStorage.getItem("SteamArchaeologist_Mode");
+    let filterMode = savedMode === "unknown" ? "unknown" : "year";
 
     function filterGame(game) {
         game.style.display = "";
 
         const releaseDate = game.querySelector(".search_released");
+        const yearMatch = releaseDate?.innerText.match(/\b\d{4}\b/);
+        const releaseYear = yearMatch ? Number(yearMatch[0]) : null;
 
-        if (!releaseDate) {
-            game.style.display = "none";
+        if (releaseYear === null) {
+            game.style.display = filterMode === "unknown" ? "" : "none";
             return;
         }
 
-        const yearMatch = releaseDate.innerText.match(/\b\d{4}\b/);
-        const releaseYear = yearMatch ? Number(yearMatch[0]) : null;
-
-        if (releaseYear !== selectedYear) {
+        if (filterMode === "year" && releaseYear !== selectedYear) {
+            game.style.display = "none";
+        } else if (filterMode === "unknown") {
             game.style.display = "none";
         }
     }
@@ -46,7 +49,6 @@
         const games = document.querySelectorAll(".search_result_row");
 
         for (const game of games) {
-
             filterGame(game);
 
             if (game.style.display !== "none") {
@@ -54,17 +56,33 @@
             }
         }
 
-        yearLabel.innerText = "Year: " + selectedYear;
+        yearLabel.innerText = filterMode === "year"
+            ? selectedYear
+            : "";
 
         updateResultLabel();
     }
 
     function updateButtons() {
-        nextYearButton.disabled = selectedYear >= new Date().getFullYear() + 2;
-        previousYearButton.disabled = selectedYear <= 1980;
+        const isYearMode = filterMode === "year";
+
+        nextYearButton.disabled = !isYearMode || selectedYear >= new Date().getFullYear() + 2;
+        previousYearButton.disabled = !isYearMode || selectedYear <= 1980;
     }
 
     const controlPanel = document.createElement("div");
+    const modeButton = document.createElement("button");
+
+    modeButton.innerText = filterMode === "year" ? "Year" : "Unknown";
+    modeButton.addEventListener("click", () => {
+        filterMode = filterMode === "year" ? "unknown" : "year";
+        localStorage.setItem("SteamArchaeologist_Mode", filterMode);
+
+        modeButton.innerText = filterMode === "year" ? "Year" : "Unknown";
+
+        filterGames();
+        updateButtons();
+    });
 
     const previousYearButton = document.createElement("button");
     previousYearButton.innerText = "◀";
@@ -76,6 +94,7 @@
     nextYearButton.innerText = "▶";
 
     controlPanel.append(previousYearButton);
+    controlPanel.append(modeButton);
     controlPanel.append(yearLabel);
     controlPanel.append(resultLabel);
     controlPanel.append(nextYearButton);
@@ -99,7 +118,6 @@
 
     document.body.prepend(controlPanel);
 
-
     updateButtons();
 
     previousYearButton.addEventListener("click", function () {
@@ -120,7 +138,6 @@
 
     filterGames();
 
-
     const observer = new MutationObserver(function (mutations) {
         let resultsChanged = false;
 
@@ -136,9 +153,13 @@
         }
     });
 
-    observer.observe(document.querySelector("#search_resultsRows"), {
-        childList: true,
-        subtree: true
-    });
+    const resultsContainer = document.querySelector("#search_resultsRows");
+
+    if (resultsContainer) {
+        observer.observe(resultsContainer, {
+            childList: true,
+            subtree: true
+        });
+    }
 
 })();
